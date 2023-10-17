@@ -23,6 +23,7 @@ lib-cov
 coverage
 *.lcov
 
+.env
 # nyc test coverage
 .nyc_output
 
@@ -31,7 +32,7 @@ coverage
 
 # Bower dependency directory (https://bower.io/)
 bower_components
-
+*.pdf
 # node-waf configuration
 .lock-wscript
 
@@ -39,6 +40,8 @@ bower_components
 build/Release
 
 # Dependency directories
+/node_modules/
+node_modules
 node_modules/
 jspm_packages/
 
