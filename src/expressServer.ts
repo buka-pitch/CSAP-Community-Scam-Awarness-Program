@@ -21,6 +21,6 @@ app.post("/scan_file", async (req, res) => {
   res.send("file scanner");
 });
 
-app.listen(process.env.PORT || 5000, () => {
+app.listen(5050, () => {
   console.log("express server runing ");
 })

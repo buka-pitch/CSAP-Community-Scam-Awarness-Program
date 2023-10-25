@@ -62,6 +62,7 @@ export const OneQuestionscene = new WizardScene<MyContext>("OneQuestionscene", a
     let link = await GenerateBotScamLink(cxt.session.userAnswer, mybotUsername);
     await cxt.sendMessage(cxt.session.userAnswer, { "parse_mode": "Markdown", "allow_sending_without_reply": true, reply_markup: { inline_keyboard: [[{ "text": cxt.session.userAnswer, "callback_data": "shared", "url": link }]] } },);
   }
+  return cxt.scene.enter("BaseUserScene");
 
 })
 
@@ -72,15 +73,23 @@ export const OneQuestionscene = new WizardScene<MyContext>("OneQuestionscene", a
 export const RenderQuestionScene = new WizardScene<MyContext>("RenderQuestionScene", async (cxt, next) => {
   if (cxt.session.questions) {
 
-    let index = cxt.session.questionIndex | 0;
+    if (cxt.session.questions.length === cxt.session.questionIndex) return cxt.wizard.next()
+    if (!cxt.session?.questionIndex) {
+      cxt.session.questionIndex = 0;
+    }
+    let index = cxt?.session?.questionIndex;
 
-    let questions: Question[] = cxt.session.questions;
+    console.log(index);
+    let questions: Question[] = cxt?.session?.questions;
     let currentQuestion = questions[index];
+    console.log(currentQuestion.choice.join())
+    console.log(currentQuestion.answer);
     let correct_answer = currentQuestion.choice.indexOf(currentQuestion.answer);
 
     cxt.session.questionIndex = index + 1;
+    console.info(cxt.session.questionIndex);
     await cxt.sendQuiz(currentQuestion.question, currentQuestion.choice, {
-      "explanation": currentQuestion.question + "\n" + currentQuestion.answer,
+      "explanation": currentQuestion.explanation,
       "allows_multiple_answers": false,
       "is_anonymous": false,
       "correct_option_id": correct_answer,
@@ -90,17 +99,20 @@ export const RenderQuestionScene = new WizardScene<MyContext>("RenderQuestionSce
 
   }
 }, async (cxt, next) => {
-  return cxt.wizard.back();
+  if (cxt.session.questionIndex <= cxt.session.questions.length) cxt.scene.enter("CompleteLessonScene");
+  cxt.scene.reenter();
 });
 
-RenderQuestionScene.on("poll_answer", async (cxt, next) => {
+RenderQuestionScene.on("inline_query", async (cxt, next) => {
   let index = cxt.session.questionIndex - 1;
   let question: Question = cxt.session.questions[index];
+  console.log(cxt.update.inline_query);
   let correct_answer = question.choice.indexOf(question.answer);
-  if (cxt.pollAnswer.poll_id === correct_answer.toString()) {
+  if (cxt.update.poll_answer.option_ids[0] === correct_answer) {
     cxt.session.userPoint += 10;
     cxt.replyWithMarkdown("```Great```\t `+10`");
   }
-  return cxt.wizard.next()
+  cxt.reply("nop");
+  cxt.wizard.next()
 
 })

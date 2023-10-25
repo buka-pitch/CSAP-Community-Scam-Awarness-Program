@@ -4,16 +4,21 @@ import { BaseAdminScene } from "./BotScenes/BaseAdminScene";
 import { BaseUserScene } from "./BotScenes/BaseUserScene";
 import { EnrolledUserScene } from "./BotScenes/EnrolledUserScene";
 import { CreateLessonScene, CreateQuestionScene } from "./BotScenes/CreateLessonScene";
-import { CreateCourseScene, OneQuestionscene } from "./BotScenes/OneQuestionScene";
+import { CreateCourseScene, OneQuestionscene, RenderQuestionScene } from "./BotScenes/OneQuestionScene";
 import {
   CompleteLessonScene,
   LessonScene,
   ViewLesson,
 } from "./BotScenes/DynamicWizardScene";
 import { Stage } from "telegraf/scenes";
+// import { prisma } from "./ScamBase";
 import { alertMsg } from "./constant";
 import axios from "axios";
 import { sleep, sleepSync } from "bun";
+import { PrismaClient } from "@prisma/client";
+
+
+const prisma = new PrismaClient();
 
 export interface MyWizardSession extends Scenes.WizardSessionData {
   myWizardSessionProp: object;
@@ -29,7 +34,27 @@ export interface MyContext extends Context {
 }
 const tokken: string | undefined = process.env.TGSECRET;
 export const bot = new Telegraf<MyContext>(tokken);
-bot.use(session());
+bot.use(session({
+  store: {
+    async get(key) {
+      const session = await prisma.session.findUnique({
+        where: { id: key },
+      });
+      return JSON.parse(session?.data?.toString() || "{}");
+    },
+    async set(key, value) {
+      await prisma.session.upsert({
+        where: { id: key },
+        update: { data: JSON.stringify(value) },
+        create: { id: key, data: JSON.stringify(value) },
+      });
+    },
+    async destroy(key) {
+      await prisma.session.delete({ where: { id: key } });
+    },
+
+  },
+},));
 
 const stage = new Scenes.Stage<MyContext>(
   [
@@ -42,6 +67,7 @@ const stage = new Scenes.Stage<MyContext>(
     ViewLesson,
     CreateCourseScene,
     LessonScene,
+    RenderQuestionScene,
     CompleteLessonScene,
   ],
   { default: "BaseUserScene" }
@@ -49,25 +75,11 @@ const stage = new Scenes.Stage<MyContext>(
 
 bot.use(stage.middleware());
 
-// bot.on("message", async (cxt, next) => {
-//   const user = await SaveSession(
-//     cxt.from.id,
-//     cxt.from.first_name + " " + cxt.from.last_name
-//   );
-//
-//   const isAdmin = await AdminCheck(cxt.from.id);
-//
-//   if (!isAdmin) {
-//     stage.options.default = "BaseAdminScene";
-//     // return cxt.scene.enter("BaseAdminScene");
-//   } else {
-//     stage.options.default = "BaseUserScene";
-//     // cxt.scene.enter("BaseUserScene");
-//
-//   }
-//   await next();
-// })
-//
+bot.on("message", async (cxt, next) => {
+  console.log(cxt.session);
+  await next();
+})
+
 
 
 
@@ -123,7 +135,7 @@ bot.command("start", async (cxt, next) => {
         break;
     }
   }
-  if (isAdmin) {
+  if (!isAdmin) {
     stage.options.default = "BaseAdminScene";
     cxt.session.role = "Admin";
     return cxt.scene.enter("BaseAdminScene");
@@ -227,7 +239,7 @@ bot.on("document", (cxt) => {
   cxt.reply("file recived");
 });
 
-bot.catch((err) => {
+bot.catch((err, cxt) => {
   console.log(err);
 });
 

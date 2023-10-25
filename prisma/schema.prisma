@@ -15,6 +15,14 @@ enum Role {
   SUPERADMIN
 }
 
+model Session {
+  id        String   @id @default(cuid()) @map("_id")
+  sid       String?  @unique
+  data      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Admin {
   id               String     @id @default(auto()) @map("_id") @db.ObjectId
   fullName         String     @unique
@@ -72,15 +80,15 @@ model Lesson {
 }
 
 model Question {
-  id              String  @id @default(auto()) @map("_id") @db.ObjectId
-  question        String  @unique
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  question        String   @unique
   answer          String
   choice          String[]
-  connectedLesson Lesson? @relation(fields: [lessonId], references: [id])
-  lessonId        String? @db.ObjectId
-
-  createdAt DateTime @default(now())
-  lastSeen  DateTime @updatedAt
-  Admin     Admin?   @relation(fields: [adminId], references: [id])
-  adminId   String?  @db.ObjectId
+  connectedLesson Lesson?  @relation(fields: [lessonId], references: [id])
+  lessonId        String?  @db.ObjectId
+  explanation     String?
+  createdAt       DateTime @default(now())
+  lastSeen        DateTime @updatedAt
+  Admin           Admin?   @relation(fields: [adminId], references: [id])
+  adminId         String?  @db.ObjectId
 }

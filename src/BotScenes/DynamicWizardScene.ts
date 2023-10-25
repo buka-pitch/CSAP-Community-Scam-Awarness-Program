@@ -33,41 +33,47 @@ CompleteLessonScene.enter(async (cxt, next) => {
     "***You have successfuly completed this lesson***\n```You can choose your next Concept to continue.```\n",
     Markup.inlineKeyboard(button, { "columns": 1 })
   );
+
   let cert = GenerateCertificate(cxt.from.first_name + cxt.from.last_name, cxt.session.courseTitle);
   cxt.sendDocument({ "filename": "csap certificate.pdf", source: cert, }, { "caption": "your csap certificate" });
-
 });
 
 CompleteLessonScene.on("callback_query", async (cxt, next) => {
   let course = await getAllCourses();
   course.forEach((item, index) => {
     if (cxt.callbackQuery.data === item.id) {
-      cxt.session.courseId = item.id;
-      cxt.session.courseIndex = index;
-      cxt.session.courseTitle = item.title;
-      cxt.session.newCourse = true;
-      cxt.session.lessonTitle = item.content[0].title;
-      cxt.session.lessonIndex = 0;
-      cxt.answerCbQuery(`starting - ${item.title}`);
-      return cxt.scene.enter("LessonScene");
+      if (item.content.length > 0) {
+        cxt.session.courseId = item.id;
+        cxt.session.courseIndex = index;
+        cxt.session.courseTitle = item.title;
+        cxt.session.newCourse = true;
+        cxt.session.lessonTitle = item.content[0].title;
+        cxt.session.lessonIndex = 0;
+        cxt.answerCbQuery(`starting - ${item.title}`);
+        return cxt.scene.enter("LessonScene");
+      } else cxt.answerCbQuery("Course Comming Soon!");
     }
   });
 });
+
+
 
 export const ViewLesson = new BaseScene<MyContext>("ViewLessonScene");
 ViewLesson.enter(async (cxt, next) => {
 
   if (cxt.session.lessonTitle) {
-    let { lessonTitle, lessonIndex, courseId } = cxt.session;
+    let { lessonTitle, lessonIndex, courseId } = await cxt.session;
     const lessons = await prisma.lesson
       .findUnique({
         where: { title: lessonTitle, courseId: courseId },
         include: { Question: true },
       })
       .catch((error) => {
+        console.error(error.message);
         console.log("no lesson found with " + lessonTitle);
       });
 
+    cxt.session.lessonIndex = 1;
     await cxt.replyWithMarkdownV2(
       "``` " + lessons?.title + "\n\n" + lessons?.description + " ```",
       Markup.keyboard(["Next", "Quit"]).resize(true).oneTime(true)
@@ -81,7 +87,7 @@ ViewLesson.enter(async (cxt, next) => {
       // rendering question if any
     }
 
-    cxt.session.lessonIndex += 1;
+
   } else {
     cxt.scene.leave();
   }
@@ -111,7 +117,7 @@ ViewLesson.hears("Quit", async (cxt, next) => {
 export const LessonScene = new WizardScene<MyContext>(
   "LessonScene",
   async (cxt, next) => {
-    cxt.session.lastScene.push(cxt.scene.current?.id);
+
     console.log(`Lesson scene ` + cxt.session.lessonTitle);
 
     if (cxt.session.lessonTitle) {
@@ -137,9 +143,7 @@ export const LessonScene = new WizardScene<MyContext>(
       }
     } else {
       let initial = 0;
-      initial++;
-      if (initial <= 1) cxt.session.newCourse = false;
-      if (!cxt.session.newCourse) {
+      if (!cxt.session.lessonTitle) {
         cxt.session.courseIndex = 0;
         let courses = await getAllCourses();
         let CourseId = courses[0].id;
