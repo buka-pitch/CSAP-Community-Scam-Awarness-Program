@@ -9,7 +9,8 @@ handler.hears("Next ->", async (cxt) => {
   return cxt.wizard.next();
 });
 export const EnrolledUserScene = new WizardScene<MyContext>(
-  "enrolledUserScene", async (cxt, next) => {
+  "enrolledUserScene",
+  async (cxt, next) => {
     return cxt.scene.enter("LessonScene");
   }
 );

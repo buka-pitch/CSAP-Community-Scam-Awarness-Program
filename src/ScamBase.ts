@@ -136,8 +136,5 @@ export function GenerateBitLyLink(
   botUsername: string,
   cxt: Context
 ) {
-
   //generate a bit.ly link here;
 }
-
-

@@ -1,15 +1,15 @@
 import { MyContext, MyWizardSession } from "../app";
 import { Scenes, Telegraf, session, Context, Composer, Markup } from "telegraf";
-import { BaseScene, Stage, WizardScene } from "telegraf/scenes";
+import { BaseScene, Stage, WizardScene, SceneSession } from "telegraf/scenes";
 import { InlineKeyboardButton, Update } from "telegraf/types";
 import { GenerateScamLink, CountUser, prisma } from "../ScamBase";
 import { getAllCourses, getCourse } from "../CourseFunctions";
 import { SendMessageFunction, SendMessageXFunction } from "../BotFunctions";
 import { sendTemplate } from "../constant";
-
-
+import { NextFunction } from "express";
 
 export const BaseAdminScene = new BaseScene<MyContext>("BaseAdminScene");
+
 BaseAdminScene.enter((cxt) => {
   cxt.sendMessage(
     "welcome back " + cxt.from?.first_name,
@@ -23,16 +23,21 @@ BaseAdminScene.enter((cxt) => {
   );
   cxt.sendMessage(
     "<< Quick Access  >>",
-    Markup.inlineKeyboard([
-      [{ text: "Create new Course", callback_data: "Create new Course" }, { "text": "Get Courses", "callback_data": "GetCourse" }],
-      [{ text: "Create a Lesson", callback_data: "newLesson" }],
-      [{ text: "Create a Question", callback_data: "newQuestion" }],
-      [{ text: "Get User Count", callback_data: "getUserCount" }],
-      [{ text: "Generate a new Scam Link", callback_data: "generateLink" }],
-      [{ text: "Send Msg For All Users", callback_data: "sendMsg" }],
-    ], { "wrap": true }),
+    Markup.inlineKeyboard(
+      [
+        [
+          { text: "Create new Course", callback_data: "Create new Course" },
+          { text: "Get Courses", callback_data: "GetCourse" },
+        ],
+        [{ text: "Create a Lesson", callback_data: "newLesson" }],
+        [{ text: "Create a Question", callback_data: "newQuestion" }],
+        [{ text: "Get User Count", callback_data: "getUserCount" }],
+        [{ text: "Generate a new Scam Link", callback_data: "generateLink" }],
+        [{ text: "Send Msg For All Users", callback_data: "sendMsg" }],
+      ],
+      { wrap: true }
+    )
   );
-
 });
 
 BaseAdminScene.hears(
@@ -50,28 +55,28 @@ BaseAdminScene.hears("Get Courses", async (cxt) => {
     CourseTitles.push(element.title);
   });
 
-  cxt.sendMessage("Available Courses\n" + CourseTitles.join().replaceAll(",", "\n"));
+  cxt.sendMessage(
+    "Available Courses\n" + CourseTitles.join().replaceAll(",", "\n")
+  );
 });
 
 BaseAdminScene.hears("Get Course Data", async (cxt, next) => {
   const courses = await getAllCourses();
-  courses.forEach(element => {
+  courses.forEach((element) => {
     cxt.reply(element.title);
     element.content.forEach((item) => {
       cxt.reply("->  " + item.title);
-    })
-  })
-})
+    });
+  });
+});
 
 BaseAdminScene.hears("Create new Course", async (cxt) => {
   cxt.scene.enter("CreateCourseScene");
 });
 BaseAdminScene.hears("New Question", async (cxt, next) => {
-
   cxt.scene.enter("CreateQuestionScene");
 
   return next();
-
 });
 BaseAdminScene.hears("Active User+", async (cxt) => {
   let count = await CountUser().then((result) => {
@@ -80,23 +85,16 @@ BaseAdminScene.hears("Active User+", async (cxt) => {
   });
 });
 BaseAdminScene.hears("Generate Link", (cxt, next) => {
-  SendMessageXFunction(sendTemplate)
-  next()
+  SendMessageXFunction(sendTemplate);
+  next();
 });
-BaseAdminScene.hears("Send new Msg", async (cxt) => {
-  cxt.sendMessage("Enter you Message - ");
-  if (await cxt.update.message.text)
-    await SendMessageFunction({
-      "data": cxt.update.message.text, "button": {
-        "inline_keyboard":
-          [
-            [
-              { "text": "Get started", "callback_data": "start" }
-              ,],
-          ],
-      }
-    });
-});
+BaseAdminScene.hears(
+  "Send new Msg",
+  async (cxt: MyContext, next: NextFunction) => {
+    cxt.scene.enter("OneQuestionscene", { Caller: "sendmsg" });
+    next();
+  }
+);
 
 BaseAdminScene.on("callback_query", async (cxt) => {
   switch (cxt.callbackQuery.data) {
